@@ -848,7 +848,11 @@ function renderTables() {
     const container = document.getElementById('tables-container');
     if (!container) return;
 
-    // Derive status from live orders
+    // Derive status from recent orders only (same 24-hour window as renderOrders)
+    // Without this filter, old orders that were never marked 'paid' would
+    // permanently show their table as occupied — this was the root cause of
+    // Table 2 and Table 5 being stuck as "occupied".
+    const now = new Date();
     const orderDerivedStatus = {};
     orders.forEach(order => {
         const t = extractTableNumber(order.tableNumber);
@@ -856,6 +860,11 @@ function renderTables() {
 
         const status = order.status || 'pending';
         if (status === 'paid') return;
+
+        // Skip orders older than 24 hours — they are no longer active
+        const orderTime = new Date(order.createdAt || 0);
+        const diffHours = (now - orderTime) / (1000 * 60 * 60);
+        if (diffHours > 24) return;
 
         if (status === 'delivered') {
             if (orderDerivedStatus[t] !== 'occupied') orderDerivedStatus[t] = 'delivered';
